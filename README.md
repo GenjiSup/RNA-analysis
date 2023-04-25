@@ -1,5 +1,5 @@
 # RNA
-The data used is from HeCaToS and the analysis was perfomed for my bachelor thesis.
+The data used was generated from the HeCaToS project and the analysis was perfomed for my bachelor thesis.
 1. The sequencing and analysis steps of total RNA include: trimming, quality control, gene quantification and differential analysis.
 The analysis was of 3 compounds using DESeq2 to find DEGs. Quantile filtering and spurious filtering were performed.
 These DEGs will then be used for pathway enrichment on REACTOME.
