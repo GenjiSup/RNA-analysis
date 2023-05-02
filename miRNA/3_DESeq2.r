@@ -6,9 +6,9 @@ output: html_document
 ---
 
 ```{r, setup, include = FALSE}
-################################
-# Load R libraries					  #
-################################ 
+####################
+# Load R libraries #
+####################
 library(DESeq2)
 require("DESeq2")
 require("edgeR")
@@ -24,42 +24,24 @@ Cont4compare<- "Cyclosporine"
 DESIGN<- "Compound"
 
 # Set thresholds for Differential Expression (based on R-ODAF)
-minCoverage <- 5000000
 MinCount<- 1
 pAdjValue<- 0.01 
 ```
 
-
-``` {r echo=F, include=FALSE}
-# Set file locations				
-#analysisID <- paste(AO, GEO_GSE, sep="_")
-#sampledir <- paste("C:/A_DESeq2/", GEO_GSE, "_Data/", sep="") 
-#if(!dir.exists(sampledir)) {dir.create(sampledir)}
-#outputdir <- paste(sampledir, GEO_GSE, "_Output/", sep="")
-#if(!dir.exists(outputdir)) {dir.create(outputdir)}
-
-
 #This comma delimited file contains at least 2 columns: NAME (sample names identical to the column names of sampleData) and Group (needs to identify to which group the sample belongs -> Disease/Control, ..., ExperimentalGroup & ControlGroup)
-
 # Load input files 
 setwd("C:/Users/carlo/OneDrive/Documenti/University/Intership/miRNA")
 
 # Load gene table
 miRNA_counts <- read.table("miRNA_counts.txt", header=TRUE, sep="\t")
-# Find columns that contain the word "Tox"
 tox_cols <- grep("Tox", colnames(miRNA_counts))
-# Remove columns with the word "Tox"
 miRNA_counts_filtered <- miRNA_counts[,-tox_cols]
-# Save filtered gene table
 write.table(miRNA_counts_filtered, "miRNA_counts_filtered.txt", sep="\t", row.names=FALSE)
-# Load filtered gene table
 sampleData <- read.delim("miRNA_counts_filtered.txt", sep="\t", stringsAsFactors=FALSE, header=TRUE, quote="\"", row.names=1)
 
 # Load metadata table
 metadata <- read.table("metadata_miRNA.txt", header=TRUE, sep=" ")
-# Filter samples with "toxic" status
 metadata_filtered <- metadata[metadata$Dose != "Tox", ]
-# Save filtered metadata table
 write.table(metadata_filtered, "metadata_filtered.txt", sep=" ", row.names=FALSE)
 DESeqDesign <- read.delim("metadata_filtered.txt", sep=" ", stringsAsFactors=FALSE, header=TRUE,  quote="\"", row.names="Name")
 
@@ -80,20 +62,11 @@ ZeroDetected<-count(sampleData[ is.na(sampleData) ])
 sampleData[ is.na(sampleData) ] <- 0 
 print(paste0(ZeroDetected, "x replacement of NA values"))
 ```
+
 ```{r echo=FALSE, include=TRUE}
 sampleData <- sampleData[,abs(log2(colSums(sampleData)/mean(colSums(sampleData)))) < 2]
 DESeqDesign <- DESeqDesign[rownames(DESeqDesign) %in% colnames(sampleData),]
 ```
-
-##### *Remove samples with total readcount < threshold (1M)*
-``` #{r echo=F, include=T}
-Keep<-ncol(sampleData[,(colSums(sampleData)> 1000000)])
-Remove<-ncol(sampleData[,(colSums(sampleData)< 1000000)])
-print(paste0("From the total of ", ncol(sampleData), " samples, ", Remove, " samples had to be removed due to low sequencing depth (<1M) -> ", Keep, " samples remaining"))
-sampleData<- sampleData[,(colSums(sampleData)> 1000000)]
-DESeqDesign <- DESeqDesign[rownames(DESeqDesign) %in% colnames(sampleData),]
-```
-
 
 ``` {r echo=F, include=F}
 # DEFINE FUNCTION for creating PCA
@@ -156,31 +129,13 @@ Make_PCA_SampleID<-function(DATA, TITLE, FILENAME, LEGEND_LOCATION){
 text(pc$x[ , 1], pc$x[ ,2 ], rownames(c),pos=1, cex = 0.6)
 } # Make_PCA function defined
 ```
-
-##### **PCA plot to exclude the post-processing outliers replicates**
-```{r echo=F, results=F,out.width="95%",fig.width=6,fig.height=6, fig.align='center',cache=F}
-#Make_PCA(sampleData, paste0( " RawData ", Samp4compare, " vs ", Cont4compare), paste0("_RawData_", Samp4compare, "_vs_", Cont4compare), "topright")
-```
-
-
-```{r echo=F, results=F,out.width="95%",fig.width=6,fig.height=6, fig.align='center',cache=F}
-#Make_PCA_SampleID(sampleData, paste0(analysisID, " RawData ", Samp4compare, " vs ", Cont4compare), paste0(outputdir, analysisID, "_RawData_", Samp4compare, "_vs_", Cont4compare), "topright")
-```
-
-``` {r echo=F, include=T}
-#DESeqDesign <- DESeqDesign [c(grep("SRR9883048",rownames(DESeqDesign), invert=TRUE)),]
-#DESeqDesign <- DESeqDesign [c(grep("SRR9883049",rownames(DESeqDesign), invert=TRUE)),]
-#  sampleData <- sampleData[, rownames(DESeqDesign) ]
-```  
+ 
 
 ##### **PCA plot after exclusion**
 ```{r echo=F, fig.align='center', fig.height=6, fig.width=6, cache=FALSE, out.width="95%", results=F}
 Make_PCA(sampleData, paste0(" RawData ", Samp4compare, " vs ", Cont4compare), paste0("_RawData_", Samp4compare, "_vs_", Cont4compare), "bottomright")
 ```
 
-```{r echo=F, results=F,out.width="95%",fig.width=6,fig.height=6, fig.align='center',cache=F}
-#Make_PCA_SampleID(sampleData, paste0(analysisID, " RawData ", Samp4compare, " vs ", Cont4compare), paste0(outputdir, analysisID, "_RawData_", Samp4compare, "_vs_", Cont4compare), "right")
-```
 
 ############################################
 ## Differential expression analysis: DESeq2 
