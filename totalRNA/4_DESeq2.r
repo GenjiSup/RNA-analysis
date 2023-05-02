@@ -6,9 +6,9 @@ output: html_document
 ---
 
 ```{r, setup, include = FALSE}
-################################
-# Load R libraries					  #
-################################ 
+####################
+# Load R libraries #					  
+####################
 library(DESeq2)
 require("DESeq2")
 require("edgeR")
@@ -20,8 +20,9 @@ library(plotly)
 ```{r echo=T, include=TRUE}
 # Specify which groups need to be compared 
 Samp4compare<- "Azathioprine" 
-Cont4compare<- "Cyclosporine"
+Cont4compare<- "DMSO"
 DESIGN<- "Compound"
+
 # Set thresholds for Differential Expression (based on R-ODAF)
 minCoverage <- 5000000
 MinCount<- 1
@@ -36,11 +37,32 @@ pAdjValue<- 0.01
 #if(!dir.exists(sampledir)) {dir.create(sampledir)}
 #outputdir <- paste(sampledir, GEO_GSE, "_Output/", sep="")
 #if(!dir.exists(outputdir)) {dir.create(outputdir)}
+
+
 #This comma delimited file contains at least 2 columns: NAME (sample names identical to the column names of sampleData) and Group (needs to identify to which group the sample belongs -> Disease/Control, ..., ExperimentalGroup & ControlGroup)
+
 # Load input files 
-setwd("C:/Users/carlo/OneDrive/Documenti/University/Intership")
-sampleData <- read.delim("gene_counts.txt", sep="\t", stringsAsFactors=FALSE, header=TRUE,  quote="\"", row.names=1)
-DESeqDesign <- read.delim("metadata.txt", sep=" ", stringsAsFactors=FALSE, header=TRUE,  quote="\"", row.names="Name")
+setwd("C:/Users/carlo/OneDrive/Documenti/University/Intership/RNA")
+# Load gene table
+gene_counts <- read.table("gene_counts.txt", header=TRUE, sep="\t")
+# Find columns that contain the word "Tox"
+tox_cols <- grep("Tox", colnames(gene_counts))
+# Remove columns with the word "Tox"
+gene_counts_filtered <- gene_counts[,-tox_cols]
+# Save filtered gene table
+write.table(gene_counts_filtered, "gene_counts_filtered.txt", sep="\t", row.names=FALSE)
+# Load filtered gene table
+sampleData <- read.delim("gene_counts_filtered.txt", sep="\t", stringsAsFactors=FALSE, header=TRUE, quote="\"", row.names=1)
+
+# Load metadata table
+metadata <- read.table("metadata.txt", header=TRUE, sep=" ")
+# Filter samples with "toxic" status
+metadata_filtered <- metadata[metadata$Dose != "Tox", ]
+# Save filtered metadata table
+write.table(metadata_filtered, "metadata_filtered.txt", sep=" ", row.names=FALSE)
+
+DESeqDesign <- read.delim("metadata_filtered.txt", sep=" ", stringsAsFactors=FALSE, header=TRUE,  quote="\"", row.names="Name")
+
 ```
 
 ### **Overview of samples and groups**
@@ -96,10 +118,12 @@ Make_PCA<-function(DATA,TITLE,FILENAME,LEGEND_LOCATION){
 	#PCA plot of the data with colors
 	plot( pc$x[ , 1:2 ], col=1, bg=c , cex=1, pch=pch, main=paste("PCA", TITLE, sep=" "), xlab=paste0("PC1: ", PC1var, "% variance"), ylab=paste0("PC2: ", PC2var, "% variance"))
 	legend(LEGEND_LOCATION, legend=c(Cont4compare, Samp4compare, "other group(s)"), col=c("dodgerblue", "red", "grey"), pch=16)
+
 	#to add labels to the plot
 #text(pc$x[ , 1], pc$x[ ,2 ], rownames(c),pos=1, cex = 0.6)
 #savePlot(filename = paste0(FILENAME, "_WithLables.png"), type = "png")
 } # Make_PCA function defined
+
 Make_PCA_SampleID<-function(DATA, TITLE, FILENAME, LEGEND_LOCATION){
 #DATA = norm_data, TITLE= title or PCA, FILENAME=x(without .png), LABLES = T/F, LEGEND_LOCATION= topright, topleft, ...
 #X11(type='cairo')
@@ -161,6 +185,7 @@ Make_PCA(sampleData, paste0(" RawData ", Samp4compare, " vs ", Cont4compare), pa
 ``` {r echo=F, include=T}
 x=1 #Rmarkdown should only run 1 comparison at a time (to create nice output)
 #for (x in 1:length(Samp4compare)){	## for all comparisons to be done	
+
   condition1<- Cont4compare[x]	    		
   condition2<- Samp4compare[x]  
   
@@ -186,8 +211,10 @@ x=1 #Rmarkdown should only run 1 comparison at a time (to create nice output)
  
 # Filtering genes with low readcounts: 
 # 75% of at least 1 group need to be above MinCount CPM
+
   SampPerGroup<-table(DE_Design[,DESIGN])
   kable(SampPerGroup, caption = "Amount of samples per group")
+
   Counts<-counts(dds, normalized=TRUE)
   CPMdds<-cpm(counts(dds, normalized=TRUE))
   
@@ -207,6 +234,7 @@ x=1 #Rmarkdown should only run 1 comparison at a time (to create nice output)
     if ( sum(CountsPass) > 0 ) {Filter[gene,1] <- 1 }	else { Filter[gene,1] <- 0 }
     
   }	
+
     compte <- Counts[Filter[,1] == 1,]
   Filter <- Filter[rownames(Filter) %in% rownames(compte),]
 print("Executing dds step ... Done")
@@ -221,7 +249,7 @@ print("Executing dds step ... Done")
   
   res <- results(dds[rownames(compte),], contrast=c(DESIGN[x], condition2, condition1), pAdjustMethod= 'fdr')
   
-  setwd("C:/Users/carlo/OneDrive/Documenti/University/Intership/AZAvsDMSO")
+  setwd("C:/Users/carlo/OneDrive/Documenti/University/Intership/RNA")
   FileName<-paste(condition2,"vs",condition1, "FDR", pAdjValue, sep="_")
   
   #Save output tables		
@@ -315,44 +343,8 @@ heatmap(DEG_counts)
 datatable(DEGs_display)
 ```
 
-## GO Gene Ontology
-#```{r, setup, include = FALSE}
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-BiocManager::install("clusterProfiler")
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-BiocManager::install("AnnotationDbi")
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-BiocManager::install("org.Hs.eg.db")
-```
-
-#```{r, setup, include = FALSE}
-library(clusterProfiler)
-library(org.Hs.eg.db)
-library(AnnotationDbi)
-```
-
-#```{r}
-sigs <- na.omit(res)
-sigs <- sigs[sigs$padj < 0.05 & sigs$baseMean > 50,]
-```
-
-#```{r}
-genes_to_test <- rownames(sigs[sigs$log2FoldChange < -0.5,])
-GO_results <- enrichGO(gene = genes_to_test, OrgDb = "org.Hs.eg.db", keyType = "ENSEMBL", ont = "BP")
-as.data.frame(GO_results)
-```
-
-#```{r}
-fit <- plot(barplot(GO_results, showCategory = 15))
-png("out2.png", res = 250, width = 1500, height = 2100)
-print(fit)
-dev.off()
-fit
-```
-
-
 
 End of Report
+
+
+
