@@ -1,5 +1,5 @@
-declare dir="/share/analysis/Carlo/miRNA/DMSO"
-declare input="/share/analysis/Carlo/miRNA/DMSO/miRNA_name"
+declare dir="/path/to/output/dir"
+declare input="/path/to/imput/dir"
 SUFFIX_in="_R1.fastq"
 
 for fq1 in $input/*.fastq
