@@ -6,21 +6,24 @@ output: html_document
 ---
 
 ```{r, setup, include = FALSE}
-####################
-# Load R libraries #					  
-####################
+################################
+# Load R libraries					  #
+################################ 
 library(DESeq2)
 require("DESeq2")
 require("edgeR")
 library(knitr)
 library(DT)
 library(plotly)
+library(tidyverse)
+library(magrittr)
+library(cowplot)
 ```
 
 ```{r echo=T, include=TRUE}
 # Specify which groups need to be compared 
 Samp4compare<- "Azathioprine" 
-Cont4compare<- "DMSO"
+Cont4compare<- "Cyclosporine"
 DESIGN<- "Compound"
 
 # Set thresholds for Differential Expression (based on R-ODAF)
@@ -47,8 +50,10 @@ setwd("C:/Users/carlo/OneDrive/Documenti/University/Intership/RNA")
 gene_counts <- read.table("gene_counts.txt", header=TRUE, sep="\t")
 # Find columns that contain the word "Tox"
 tox_cols <- grep("Tox", colnames(gene_counts))
+aged_cols <- grep("336", colnames(gene_counts))
+cols_to_remove <- c(tox_cols, aged_cols)
 # Remove columns with the word "Tox"
-gene_counts_filtered <- gene_counts[,-tox_cols]
+gene_counts_filtered <- gene_counts[,-cols_to_remove]
 # Save filtered gene table
 write.table(gene_counts_filtered, "gene_counts_filtered.txt", sep="\t", row.names=FALSE)
 # Load filtered gene table
@@ -57,7 +62,7 @@ sampleData <- read.delim("gene_counts_filtered.txt", sep="\t", stringsAsFactors=
 # Load metadata table
 metadata <- read.table("metadata.txt", header=TRUE, sep=" ")
 # Filter samples with "toxic" status
-metadata_filtered <- metadata[metadata$Dose != "Tox", ]
+metadata_filtered <- metadata[!(metadata$Dose == "Tox" | metadata$Time == "336"), ]
 # Save filtered metadata table
 write.table(metadata_filtered, "metadata_filtered.txt", sep=" ", row.names=FALSE)
 
@@ -76,7 +81,7 @@ datatable(DESeqDesign)
 
 ##### *Data clean-up: replace NA with 0*
 ``` {r echo=F, include=T}
-ZeroDetected<-count(sampleData[ is.na(sampleData) ])
+ZeroDetected <- sum(sampleData[ is.na(sampleData) ])
 sampleData[ is.na(sampleData) ] <- 0 
 print(paste0(ZeroDetected, "x replacement of NA values"))
 ```
@@ -175,7 +180,7 @@ Make_PCA(sampleData, paste0(" RawData ", Samp4compare, " vs ", Cont4compare), pa
 ```
 
 ```{r echo=F, results=F,out.width="95%",fig.width=6,fig.height=6, fig.align='center',cache=F}
-#Make_PCA_SampleID(sampleData, paste0(analysisID, " RawData ", Samp4compare, " vs ", Cont4compare), paste0(outputdir, analysisID, "_RawData_", Samp4compare, "_vs_", Cont4compare), "right")
+#Make_PCA_SampleID(sampleData, paste0( " RawData ", Samp4compare, " vs ", Cont4compare), paste0(outputdir, "_RawData_", Samp4compare, "_vs_", Cont4compare), "right")
 ```
 
 ############################################
@@ -252,6 +257,10 @@ print("Executing dds step ... Done")
   setwd("C:/Users/carlo/OneDrive/Documenti/University/Intership/RNA")
   FileName<-paste(condition2,"vs",condition1, "FDR", pAdjValue, sep="_")
   
+  #Write table res needed for volcano plots
+  res %>% write.table('res_AZAvsCYC.txt', sep = '\t', quote = F, row.names = T)
+  AZAvsCYC = read.table('res_AZAvsCYC.txt', sep = '\t')
+  
   #Save output tables		
   norm_data <<- counts(dds[rownames(compte)],normalized=TRUE) 
   DEsamples <<- subset(res,res$padj < pAdjValue)	
@@ -320,11 +329,11 @@ DESeq2 identification of DEGs finished.
 
 ##### **PCA plot of normalized data**
 ```{r echo=F, results=F,out.width="95%",fig.width=6,fig.height=6, fig.align='center',cache=F}
-Make_PCA(norm_data, paste0(" NormData ", Samp4compare, " vs ", Cont4compare), paste0("_NormData_", Samp4compare, "_vs_", Cont4compare), "bottomleft")
+Make_PCA(norm_data, paste0(" NormData ", Samp4compare, " vs ", Cont4compare), paste0("_NormData_", Samp4compare, "_vs_", Cont4compare), "topleft")
 ```
 
-```{r echo=F, results=F,out.width="95%",fig.width=12,fig.height=6, fig.align='center',cache=F}
-#Make_PCA_SampleID(norm_data, paste0(analysisID, " NormData ", Samp4compare, " vs ", Cont4compare), paste0(outputdir, analysisID, "_NormData_", Samp4compare, "_vs_", Cont4compare), "topleft")
+```{r echo=F, results=F,out.width="95%",fig.width=8,fig.height=6, fig.align='center',cache=F}
+Make_PCA_SampleID(norm_data, paste0( " NormData ", Samp4compare, " vs ", Cont4compare), paste0("_NormData_", Samp4compare, "_vs_", Cont4compare), "topleft")
 ```
 
 **Heatmap of all genes**
